@@ -1,0 +1,15 @@
+{
+  "name": "web-audio",
+  "version": "0.1.0",
+  "description": "HTML5 Web Audio Template",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Cisco Song",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "morgan": "^1.10.0"
+  }
+}
