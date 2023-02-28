@@ -1,79 +1,126 @@
-(function () {
+const mainBox = document.getElementById("mainBox");
+const startButton = document.getElementById("main");
 
-   // Check if the browser supports web audio. Safari wants a prefix.
-   if ('AudioContext' in window || 'webkitAudioContext' in window) {
-
-     //////////////////////////////////////////////////
-     // Here's the part for just playing an audio file.
-     //////////////////////////////////////////////////
-     var play = function play(audioBuffer) {
-       var source = context.createBufferSource();
-       source.buffer = audioBuffer;
-       source.connect(context.destination);
-       source.start();
-     };
-
-     var URL = './samples/piano/A4.mp3';
-     var AudioContext = window.AudioContext || window.webkitAudioContext;
-     var context = new AudioContext(); // Make it crossbrowser
-     var gainNode = context.createGain();
-     gainNode.gain.value = 1; // set volume to 100%
-     var playButton = document.querySelector('#play');
-     var yodelBuffer = void 0;
-
-     // The Promise-based syntax for BaseAudioContext.decodeAudioData() is not supported in Safari(Webkit).
-     window.fetch(URL)
-       .then(response => response.arrayBuffer())
-       .then(arrayBuffer => context.decodeAudioData(arrayBuffer,
-          audioBuffer => {
-             yodelBuffer = audioBuffer;
-           },
-           error =>
-             console.error(error)
-         ))
-
-     playButton.onclick = function () {
-       return play(yodelBuffer);
-     };
-
-     // Play the file every 2 seconds. You won't hear it in iOS until the audio context is unlocked.
-     window.setInterval(function(){
-       play(yodelBuffer);
-     }, 5000);
-
-
-     //////////////////////////////////////////////////
-     // Here's the part for unlocking the audio context, probably for iOS only
-     //////////////////////////////////////////////////
-
-     // From https://paulbakaus.com/tutorials/html5/web-audio-on-ios/
-     // "The only way to unmute the Web Audio context is to call noteOn() right after a user interaction. This can be a click or any of the touch events (AFAIK – I only tested click and touchstart)."
-     
-     var unmute = document.getElementById('unmute');
-     unmute.addEventListener('click', unlock);
-
-     function unlock() {
-       console.log("unlocking")
-       // create empty buffer and play it
-       var buffer = context.createBuffer(1, 1, 22050);
-       var source = context.createBufferSource();
-       source.buffer = buffer;
-       source.connect(context.destination);
-
-       // play the file. noteOn is the older version of start()
-       source.start ? source.start(0) : source.noteOn(0);
-
-       // by checking the play state after some time, we know if we're really unlocked
-       setTimeout(function() {
-         if((source.playbackState === source.PLAYING_STATE || source.playbackState === source.FINISHED_STATE)) {
-           // Hide the unmute button if the context is unlocked.
-           unmute.style.display = "none";
-         }
-       }, 0);
-     }
-
-     // Try to unlock, so the unmute is hidden when not necessary (in most browsers).
-     unlock();
+async function main() {
+   let organ = {
+      A4: "./samples/organ/A4.mp3",
+      C4: "./samples/organ/C4.mp3"
    }
- }
-)();
+
+   let piano = {
+      A4: "./samples/piano/A4.mp3",
+      C4: "./samples/piano/C4.mp3"
+   }
+
+   let saxophone = {
+      A4: "./samples/saxophone/A4.mp3",
+      C4: "./samples/saxophone/C4.mp3"
+   }
+
+   let violin = {
+      A4: "./samples/violin/A4.mp3",
+      C4: "./samples/violin/C4.mp3"
+   }
+
+   let context = new AudioContext();
+   let gainNode = context.createGain();
+   let au = context.createBufferSource();
+   let buffer = null;
+
+   gainNode.connect(context.destination);
+   gainNode.gain.value = 1;
+
+   // https://dobrian.github.io/cmp/topics/sample-recording-and-playback-with-web-audio-api/1.loading-and-playing-sound-files.html
+   async function load(file) {
+      try {
+         const response = await window.fetch(file);
+         const arrayBuffer = await response.arrayBuffer();
+         context.decodeAudioData(arrayBuffer, (data) => buffer = data);
+      } catch (error) {
+         console.error(error);
+      }
+   }
+
+   function beep(time) {
+      au.buffer = buffer;
+      au.connect(gainNode);
+
+      au.start(0);
+      au.stop(context.currentTime + time);
+
+      au = null;
+      au = context.createBufferSource();
+   }
+
+   function delay(time) {
+      return new Promise(resolve => setTimeout(resolve, time));
+   }
+
+   function getRandomInstrument() {
+      return Math.floor(Math.random() * 4);
+   }
+
+   function getRandomMode() {
+      return Math.floor(Math.random() * 3);
+   }
+
+   async function mode_1() {
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.2);
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.2);
+   }
+
+   async function mode_2() {
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.6);
+   }
+
+   async function mode_3() {
+      await delay(1000);
+      beep(0.2);
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.6);
+      await delay(1000);
+      beep(0.6);
+   }
+
+   mainBox.innerHTML = "";
+   let html = `<button id="stop">Stop</button>`
+   mainBox.innerHTML = html;
+   const stopButton = document.getElementById("stop");
+   stopButton.addEventListener("click", () => location.reload(true));
+
+   let modeList = [mode_1, mode_2, mode_3];
+   let instrumentList = [organ, piano, saxophone, violin];
+   let i = 0;
+   while (i < 30) {
+      let index = getRandomMode();
+      let mode = modeList[index];
+      let instrument = instrumentList[getRandomInstrument()].A4;
+      await load(instrument);
+      let j = 0;
+      while (j < 24) {
+         console.log(index + "[" + instrument.split("/")[2] + "]");
+         mode();
+         await delay(10000);
+         ++j;
+      }
+      await delay(1200000);
+      ++i;
+   }
+}
+
+startButton.addEventListener("click", main);
